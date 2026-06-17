@@ -1,1 +1,344 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Film 1 – Bråk, decimal och procent</title>
+<style>
+  :root {
+    --bg: #f5f5f2;
+    --card: #ffffff;
+    --border: #e2e2dd;
+    --text: #1a1a18;
+    --muted: #6b6b66;
+    --accent: #185fa5;
+    --accent-soft: #e6f1fb;
+    --correct: #1d9e75;
+    --correct-soft: #e1f5ee;
+    --wrong: #e24b4a;
+    --wrong-soft: #fcebeb;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px 16px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
 
+  .player-box {
+    position: relative;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+  }
+  #player { width: 100%; height: 100%; }
+
+  /* Frågekort i ren, ljus design som matchar övningsuppgifterna */
+  .overlay {
+    position: absolute; inset: 0;
+    background: var(--card);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 28px;
+    overflow-y: auto;
+  }
+  .overlay.show { display: flex; }
+
+  .q-tag {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    align-self: flex-start;
+  }
+  .q-text { color: var(--text); font-size: 19px; font-weight: 500; margin: 0 0 18px; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt {
+    text-align: left;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    font-size: 15px;
+    padding: 13px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: inherit;
+  }
+  .opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { background: var(--correct-soft); border-color: var(--correct); color: #04342c; }
+  .opt.wrong { background: var(--wrong-soft); border-color: var(--wrong); color: #501313; }
+
+  .feedback { margin-top: 16px; font-size: 14px; min-height: 20px; color: var(--muted); }
+  .feedback.ok { color: var(--correct); }
+  .feedback.no { color: var(--wrong); }
+
+  .continue {
+    margin-top: 18px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    align-self: flex-start;
+    display: none;
+    font-family: inherit;
+  }
+  .continue.show { display: inline-block; }
+  .progress { margin-top: 16px; font-size: 13px; color: var(--muted); }
+
+  /* Slutsammanfattning – ren ljus design */
+  .summary {
+    position: absolute; inset: 0;
+    background: var(--card);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 28px;
+  }
+  .summary.show { display: flex; }
+  .summary h2 { color: var(--text); font-size: 24px; font-weight: 500; margin: 0 0 8px; }
+  .summary .score { color: var(--correct); font-size: 40px; font-weight: 600; margin: 8px 0; }
+  .summary p { color: var(--muted); font-size: 15px; margin: 4px 0; }
+  .summary button {
+    margin-top: 22px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .scorebar {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--muted);
+    display: flex;
+    gap: 16px;
+  }
+  .scorebar strong { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Film 1 – Bråk, decimal och procent</h1>
+  <p class="sub">Videon pausas vid tre tillfällen. Svara rätt för att fortsätta.</p>
+
+  <div class="player-box">
+    <div id="player"></div>
+
+    <div class="overlay" id="overlay">
+      <span class="q-tag" id="qtag">Fråga</span>
+      <p class="q-text" id="qtext"></p>
+      <div class="options" id="options"></div>
+      <div class="feedback" id="feedback"></div>
+      <button class="continue" id="continueBtn">Fortsätt videon &nbsp;&rarr;</button>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <div class="summary" id="summary">
+      <h2>Klart!</h2>
+      <div class="score" id="finalScore">0 / 3</div>
+      <p id="firstTryLine"></p>
+      <p id="praiseLine"></p>
+      <button id="restartBtn">Börja om</button>
+    </div>
+  </div>
+
+  <div class="scorebar">
+    <span>Rätt svar: <strong id="liveCorrect">0</strong> / 3</span>
+    <span>Rätt på första försöket: <strong id="liveFirst">0</strong></span>
+  </div>
+</div>
+
+<script>
+  // ====== INNEHÅLL ======
+  const VIDEO_ID = "vxQUiwfckP4";
+
+  const QUESTIONS = [
+    {
+      time: 62, // 1:02
+      text: "Om en pizza är delad i 8 delar och du tar 2 bitar. Hur skulle du beskriva det som ett bråk?",
+      options: ["2/8", "8/2", "2/6", "2/10"],
+      correct: 0,
+      explain: "Rätt! 2 bitar av 8 skrivs som 2/8."
+    },
+    {
+      time: 163, // 2:43
+      text: "Om 1/4 = 0,25. Vad tror du 1/2 är som decimaltal?",
+      options: ["0,5", "0,25", "0,12", "0,75"],
+      correct: 0,
+      explain: "Rätt! 1/2 är hälften, alltså 0,5."
+    },
+    {
+      time: 241, // 4:01
+      text: "Om 25 % = 0,25 = 1/4. Vad blir då 50 % som decimaltal och som bråk?",
+      options: ["0,5 och 1/2", "0,25 och 1/4", "0,05 och 1/20", "5,0 och 5/10"],
+      correct: 0,
+      explain: "Rätt! 50 % = 0,5 = 1/2."
+    }
+  ];
+  // ======================
+
+  let player;
+  let asked = new Array(QUESTIONS.length).fill(false);
+  let checkTimer = null;
+  let currentQ = null;
+  let triesThisQ = 0;
+  let correctCount = 0;
+  let firstTryCount = 0;
+  let finished = false;
+
+  const overlay = document.getElementById("overlay");
+  const qtag = document.getElementById("qtag");
+  const qtext = document.getElementById("qtext");
+  const optionsEl = document.getElementById("options");
+  const feedback = document.getElementById("feedback");
+  const continueBtn = document.getElementById("continueBtn");
+  const progress = document.getElementById("progress");
+  const summary = document.getElementById("summary");
+  const finalScore = document.getElementById("finalScore");
+  const firstTryLine = document.getElementById("firstTryLine");
+  const praiseLine = document.getElementById("praiseLine");
+  const restartBtn = document.getElementById("restartBtn");
+  const liveCorrect = document.getElementById("liveCorrect");
+  const liveFirst = document.getElementById("liveFirst");
+
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+
+  window.onYouTubeIframeAPIReady = function () {
+    player = new YT.Player("player", {
+      videoId: VIDEO_ID,
+      playerVars: { rel: 0, modestbranding: 1 },
+      events: { onStateChange: onState }
+    });
+  };
+
+  function onState(e) {
+    if (e.data === YT.PlayerState.PLAYING) startWatching();
+    else stopWatching();
+    if (e.data === YT.PlayerState.ENDED) showSummary();
+  }
+
+  function startWatching() {
+    stopWatching();
+    checkTimer = setInterval(() => {
+      const t = player.getCurrentTime();
+      QUESTIONS.forEach((q, i) => {
+        if (!asked[i] && t >= q.time) {
+          asked[i] = true;
+          showQuestion(i);
+        }
+      });
+    }, 400);
+  }
+  function stopWatching() {
+    if (checkTimer) { clearInterval(checkTimer); checkTimer = null; }
+  }
+
+  function showQuestion(i) {
+    currentQ = i;
+    triesThisQ = 0;
+    const q = QUESTIONS[i];
+    player.pauseVideo();
+    qtag.textContent = "Fråga " + (i + 1) + " av " + QUESTIONS.length;
+    qtext.textContent = q.text;
+    feedback.textContent = "";
+    feedback.className = "feedback";
+    continueBtn.classList.remove("show");
+    progress.textContent = "";
+    optionsEl.innerHTML = "";
+    q.options.forEach((opt, idx) => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.textContent = opt;
+      b.onclick = () => answer(idx, b);
+      optionsEl.appendChild(b);
+    });
+    overlay.classList.add("show");
+  }
+
+  function answer(idx, btn) {
+    const q = QUESTIONS[currentQ];
+    triesThisQ++;
+    const buttons = optionsEl.querySelectorAll(".opt");
+    if (idx === q.correct) {
+      btn.classList.add("correct");
+      buttons.forEach(b => b.disabled = true);
+      feedback.textContent = q.explain || "Rätt!";
+      feedback.className = "feedback ok";
+      continueBtn.classList.add("show");
+      correctCount++;
+      if (triesThisQ === 1) firstTryCount++;
+      updateLive();
+    } else {
+      btn.classList.add("wrong");
+      btn.disabled = true;
+      feedback.textContent = "Inte riktigt – försök igen.";
+      feedback.className = "feedback no";
+    }
+  }
+
+  function updateLive() {
+    liveCorrect.textContent = correctCount;
+    liveFirst.textContent = firstTryCount;
+  }
+
+  continueBtn.onclick = () => {
+    overlay.classList.remove("show");
+    player.playVideo();
+  };
+
+  function showSummary() {
+    if (finished) return;
+    finished = true;
+    stopWatching();
+    finalScore.textContent = correctCount + " / " + QUESTIONS.length;
+    firstTryLine.textContent = "Rätt på första försöket: " + firstTryCount + " av " + QUESTIONS.length;
+    let praise;
+    if (firstTryCount === QUESTIONS.length) praise = "Helt rätt på första försöket – grymt jobbat!";
+    else if (correctCount === QUESTIONS.length) praise = "Alla rätt till slut – bra kämpat!";
+    else praise = "Bra jobbat – titta gärna igen på det som var klurigt.";
+    praiseLine.textContent = praise;
+    summary.classList.add("show");
+  }
+
+  restartBtn.onclick = () => {
+    asked = new Array(QUESTIONS.length).fill(false);
+    correctCount = 0;
+    firstTryCount = 0;
+    finished = false;
+    updateLive();
+    summary.classList.remove("show");
+    player.seekTo(0);
+    player.playVideo();
+  };
+</script>
+</body>
+</html>
